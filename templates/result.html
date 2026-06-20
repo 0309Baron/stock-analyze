@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Analysis Result</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Stock Analysis Result</h1>
+        <p>台股智慧分析結果</p>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>{{ result.stock_id }} Analysis</h2>
+
+            <table>
+                <tr>
+                    <th>Item</th>
+                    <th>Value</th>
+                </tr>
+                <tr>
+                    <td>Stock Name</td>
+                    <td>{{ result.stock_name }}</td>
+                </tr>
+                <tr>
+                    <td>Close Price</td>
+                    <td>{{ result.close }}</td>
+                </tr>
+                <tr>
+                    <td>Daily Return</td>
+                    <td>{{ result.return_rate }}</td>
+                </tr>
+                <tr>
+                    <td>MA5</td>
+                    <td>{{ result.ma5 }}</td>
+                </tr>
+                <tr>
+                    <td>MA20</td>
+                    <td>{{ result.ma20 }}</td>
+                </tr>
+                <tr>
+                    <td>5-Day Change</td>
+                    <td>{{ result.change_5d }}</td>
+                </tr>
+                <tr>
+                    <td>Volume Ratio</td>
+                    <td>{{ result.volume_ratio }}</td>
+                </tr>
+                <tr>
+                    <td>20-Day Volatility</td>
+                    <td>{{ result.volatility_20d }}</td>
+                </tr>
+                <tr>
+                    <td>Trend Score</td>
+                    <td>{{ result.trend_score }}</td>
+                </tr>
+                <tr>
+                    <td>Risk Level</td>
+                    <td>{{ result.risk_level }}</td>
+                </tr>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2>Analysis Reasons</h2>
+            {% if result.reasons and result.reasons|length > 0 %}
+                <ul>
+                    {% for reason in result.reasons %}
+                        <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No analysis reasons were generated.</p>
+            {% endif %}
+        </section>
+
+        <a href="/">Back to Home</a>
+    </main>
+</body>
+</html>

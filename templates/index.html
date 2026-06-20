@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Taiwan Stock Intelligence Platform</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Taiwan Stock Intelligence Platform</h1>
+        <p>台股智慧分析平台</p>
+    </header>
+
+    <main>
+        {% if error_message %}
+            <section class="card">
+                <h2>System Message</h2>
+                <p>{{ error_message }}</p>
+            </section>
+        {% endif %}
+
+        <section class="card">
+            <h2>Stock Analysis</h2>
+            <p>
+                Enter a stock code or stock name.
+                The system will directly load the stock code and stock name from TWSE,
+                then download historical trading data and generate analysis results.
+            </p>
+
+            <form action="/analyze" method="POST">
+                <label>Stock Code or Name:</label>
+                <input
+                    type="text"
+                    name="keyword"
+                    list="stockList"
+                    placeholder="Example: 2330 or 台積電"
+                    required
+                >
+
+                <datalist id="stockList">
+                    {% for stock in stock_list %}
+                        <option value="{{ stock.code }}">{{ stock.code }} {{ stock.name }}</option>
+                        <option value="{{ stock.name }}">{{ stock.code }} {{ stock.name }}</option>
+                    {% endfor %}
+                </datalist>
+
+                <button type="submit">Analyze</button>
+            </form>
+
+            <p>
+                <a href="/reload-stocks">Reload TWSE Stock List</a>
+            </p>
+        </section>
+
+        <section class="card">
+            <h2>Project Information</h2>
+            <ul>
+                <li>Project Name: Taiwan Stock Intelligence Platform</li>
+                <li>Project Type: Team Project</li>
+                <li>Topic: Web Services, Database, and Stock Data Analysis</li>
+                <li>Purpose: Build a web-based platform for Taiwan stock data analysis and visualization.</li>
+            </ul>
+        </section>
+
+        <section class="card">
+            <h2>System Architecture</h2>
+            <p>
+                The system uses Flask as the web server.
+                After receiving a stock code or stock name, it searches the TWSE stock list,
+                downloads historical trading data, stores the data into SQLite,
+                and uses Pandas to generate technical indicators and rule-based analysis.
+            </p>
+
+            <ul>
+                <li>User Browser</li>
+                <li>Flask Web Server</li>
+                <li>TWSE Stock List API</li>
+                <li>Historical Stock Data Crawler</li>
+                <li>SQLite Database</li>
+                <li>Pandas Analysis Module</li>
+            </ul>
+        </section>
+
+        <section class="card">
+            <h2>Main Functions</h2>
+            <ol>
+                <li>Load stock codes and stock names directly from TWSE.</li>
+                <li>Search stocks by code or name.</li>
+                <li>Download historical stock trading data.</li>
+                <li>Store stock data in SQLite database.</li>
+                <li>Calculate MA5, MA20, daily return, volume ratio, and volatility.</li>
+                <li>Generate trend score and analysis reasons.</li>
+            </ol>
+        </section>
+    </main>
+</body>
+</html>

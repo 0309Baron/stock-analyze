@@ -1,0 +1,74 @@
+body {
+    margin: 0;
+    font-family: Arial, "Microsoft JhengHei", sans-serif;
+    background-color: #eef5ee;
+    color: #222;
+}
+
+header {
+    background-color: #173b2f;
+    color: white;
+    padding: 24px;
+    text-align: center;
+}
+
+main {
+    width: 80%;
+    margin: 24px auto;
+}
+
+.card {
+    background-color: white;
+    padding: 24px;
+    margin-bottom: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+h2 {
+    color: #1f5c45;
+}
+
+input, select {
+    padding: 10px;
+    width: 320px;
+    font-size: 16px;
+}
+
+button {
+    padding: 10px 18px;
+    font-size: 16px;
+    background-color: #1f5c45;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background-color: #1f5c45;
+    color: white;
+}
+
+td, th {
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+a {
+    color: #1f5c45;
+    font-weight: bold;
+}
+
+.ai-box {
+    white-space: pre-wrap;
+    background-color: #f4f7f4;
+    border-left: 5px solid #1f5c45;
+    padding: 16px;
+    line-height: 1.6;
+    font-family: Arial, "Microsoft JhengHei", sans-serif;
+}
