@@ -393,45 +393,6 @@ pip install -r requirements.txt
 
 ---
 
-# 建議的 .gitignore
-
-專案根目錄建議建立 `.gitignore`：
-
-```gitignore
-# Python virtual environment
-.venv/
-venv/
-
-# Python cache
-__pycache__/
-*.py[cod]
-
-# Environment variables
-.env
-
-# IDE settings
-.vscode/
-.idea/
-
-# SQLite database
-data/*.db
-
-# Log files
-*.log
-```
-
-`.venv` 不應上傳到 GitHub，因為每個使用者應在自己的電腦重新建立虛擬環境。
-
-如果希望所有人共用同一份測試資料庫，可以暫時移除：
-
-```gitignore
-data/*.db
-```
-
-但正式專案通常不建議將資料庫檔案直接提交到 GitHub。
-
----
-
 # 常見問題
 
 ## 出現 `ModuleNotFoundError`
