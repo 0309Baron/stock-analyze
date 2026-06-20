@@ -50,6 +50,8 @@ stock_project/
 
 # 第一次下載專案
 
+## 使用vscode 安裝 WSL 使用 ubuntu 環境
+
 ## 1. Clone 專案
 
 ```bash
