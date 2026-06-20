@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual Environment
+.venv/
+venv/
+
+# VSCode
+.vscode/
+
+# Environment Variables
+.env
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Data Files (如果不想上傳歷史股價資料)
+data/*.csv
+data/*.xlsx
