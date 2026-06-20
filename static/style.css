@@ -181,6 +181,12 @@ body {
     border-left: 4px solid var(--warning-border);
 }
 
+.alert-success {
+    color: #05603a;
+    background: #ecfdf3;
+    border-left: 4px solid #12b76a;
+}
+
 .alert-command {
     color: #7a271a;
 }
@@ -426,6 +432,40 @@ footer p {
     margin: 0;
 }
 
+.chart-section {
+    overflow: hidden;
+}
+
+.chart-description {
+    margin: 0;
+    color: var(--text-light);
+    font-size: 0.88rem;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.price-chart-wrapper {
+    height: 420px;
+}
+
+.volume-title {
+    margin-top: 35px;
+    padding-top: 25px;
+    border-top: 1px solid var(--border);
+}
+
+.volume-title h4 {
+    margin: 0 0 18px;
+    font-size: 1rem;
+}
+
+.volume-chart-wrapper {
+    height: 220px;
+}
+
 @media (max-width: 900px) {
     .indicator-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -437,6 +477,17 @@ footer p {
 }
 
 @media (max-width: 700px) {
+    .price-chart-wrapper {
+        height: 330px;
+    }
+
+    .volume-chart-wrapper {
+        height: 180px;
+    }
+
+    .chart-description {
+        display: none;
+    }
     .site-header {
         padding-top: 50px;
     }

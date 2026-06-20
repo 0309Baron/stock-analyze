@@ -193,7 +193,7 @@ def import_history(
     stock_code: str,
     stock_name: str,
     month_count: int,
-) -> None:
+) -> int:
     """下載並儲存最近數個月的歷史資料。"""
 
     create_tables()
@@ -233,6 +233,8 @@ def import_history(
     print("歷史資料匯入完成")
     print(f"股票：{stock_name}（{stock_code}）")
     print(f"總處理筆數：{total_count}")
+    
+    return total_count
 
 
 def parse_arguments() -> argparse.Namespace:

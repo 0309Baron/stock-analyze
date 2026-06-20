@@ -231,6 +231,80 @@ def calculate_score(latest: pd.Series) -> tuple[int, str, list[str]]:
 
     return score, trend, reasons
 
+def chart_value(value: Any) -> float | int | None:
+    """將 Pandas 數值轉成可傳給 JavaScript 的格式。"""
+
+    if value is None or pd.isna(value):
+        return None
+
+    number = float(value)
+
+    if number.is_integer():
+        return int(number)
+
+    return round(number, 2)
+
+
+def get_chart_data(
+    stock_code: str,
+    days: int = 60,
+) -> dict[str, list]:
+    """
+    取得圖表使用的歷史資料。
+
+    包含：
+    - 日期
+    - 收盤價
+    - MA5
+    - MA20
+    - 成交量
+    """
+
+    dataframe = get_stock_history(stock_code)
+
+    if dataframe.empty:
+        return {}
+
+    dataframe = calculate_indicators(dataframe)
+
+    if dataframe.empty:
+        return {}
+
+    # 只取最近指定交易日
+    dataframe = dataframe.tail(days)
+
+    labels = [
+        trade_date.strftime("%m/%d")
+        for trade_date in dataframe["trade_date"]
+    ]
+
+    close_prices = [
+        chart_value(value)
+        for value in dataframe["close_price"]
+    ]
+
+    ma5_values = [
+        chart_value(value)
+        for value in dataframe["ma5"]
+    ]
+
+    ma20_values = [
+        chart_value(value)
+        for value in dataframe["ma20"]
+    ]
+
+    volumes = [
+        chart_value(value)
+        for value in dataframe["trade_volume"]
+    ]
+
+    return {
+        "labels": labels,
+        "close_prices": close_prices,
+        "ma5": ma5_values,
+        "ma20": ma20_values,
+        "volumes": volumes,
+    }
 
 def analyze_stock(stock_code: str) -> dict[str, Any]:
     """取得指定股票的最新分析結果。"""

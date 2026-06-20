@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+    
 <head>
     <meta charset="UTF-8">
 
@@ -14,6 +15,7 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -76,17 +78,17 @@
         </section>
 
         <!-- 錯誤訊息 -->
+        {% if notice %}
+            <section class="alert alert-success">
+                <strong>資料匯入完成</strong>
+                <p>{{ notice }}</p>
+            </section>
+        {% endif %}
+
         {% if error %}
             <section class="alert alert-error">
                 <strong>查詢失敗</strong>
                 <p>{{ error }}</p>
-
-                <p class="alert-command">
-                    尚未匯入資料時，可以執行：
-                    <code>
-                        python import_history.py 2330 台積電 --months 6
-                    </code>
-                </p>
             </section>
         {% endif %}
 
@@ -111,12 +113,39 @@
                     {{ result.trend }}
                 </div>
             </section>
+        <!-- 歷史走勢圖 -->
+        {% if chart_data %}
+            <section class="section-block chart-section">
+                <div class="section-title">
+                    <div>
+                        <p class="section-number">01</p>
+                        <h3>近 60 個交易日走勢</h3>
+                    </div>
 
+                    <p class="chart-description">
+                        收盤價、MA5 與 MA20
+                    </p>
+                </div>
+
+                <div class="chart-wrapper price-chart-wrapper">
+                    <canvas id="priceChart"></canvas>
+                </div>
+
+                <div class="volume-title">
+                    <h4>每日成交量</h4>
+                </div>
+
+                <div class="chart-wrapper volume-chart-wrapper">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </section>
+        {% endif %}
+            
             <!-- 當日行情 -->
             <section class="section-block">
                 <div class="section-title">
                     <div>
-                        <p class="section-number">01</p>
+                        <p class="section-number">02</p>
                         <h3>當日行情</h3>
                     </div>
 
@@ -183,7 +212,7 @@
             <section class="section-block">
                 <div class="section-title">
                     <div>
-                        <p class="section-number">02</p>
+                        <p class="section-number">03</p>
                         <h3>技術指標</h3>
                     </div>
                 </div>
@@ -260,7 +289,7 @@
             <!-- 綜合分析 -->
             <section class="analysis-section">
                 <div class="score-area">
-                    <p class="section-number">03</p>
+                    <p class="section-number">04</p>
                     <h3>綜合分析</h3>
 
                     <div class="score-value">
@@ -302,5 +331,200 @@
     <footer>
         <p>台股每日數據分析平台・Internet Final Project</p>
     </footer>
+    {% if chart_data %}
+    <script>
+        const chartData = {{ chart_data | tojson }};
+
+        const priceCanvas = document.getElementById("priceChart");
+        const volumeCanvas = document.getElementById("volumeChart");
+
+        new Chart(priceCanvas, {
+            type: "line",
+
+            data: {
+                labels: chartData.labels,
+
+                datasets: [
+                    {
+                        label: "收盤價",
+                        data: chartData.close_prices,
+                        borderColor: "#315efb",
+                        backgroundColor: "rgba(49, 94, 251, 0.10)",
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        tension: 0.2,
+                        fill: false
+                    },
+                    {
+                        label: "MA5",
+                        data: chartData.ma5,
+                        borderColor: "#f79009",
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.2,
+                        fill: false
+                    },
+                    {
+                        label: "MA20",
+                        data: chartData.ma20,
+                        borderColor: "#12b76a",
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.2,
+                        fill: false
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+
+                plugins: {
+                    legend: {
+                        position: "top",
+
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            padding: 20
+                        }
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || "";
+                                const value = context.parsed.y;
+
+                                if (value === null) {
+                                    return `${label}：--`;
+                                }
+
+                                return `${label}：${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+
+                        ticks: {
+                            maxTicksLimit: 12
+                        }
+                    },
+
+                    y: {
+                        beginAtZero: false,
+
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        new Chart(volumeCanvas, {
+            type: "bar",
+
+            data: {
+                labels: chartData.labels,
+
+                datasets: [
+                    {
+                        label: "成交量",
+                        data: chartData.volumes,
+                        backgroundColor: "rgba(49, 94, 251, 0.55)",
+                        borderRadius: 3,
+                        borderSkipped: false
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+
+                                if (value === null) {
+                                    return "成交量：--";
+                                }
+
+                                return (
+                                    "成交量：" +
+                                    value.toLocaleString() +
+                                    " 股"
+                                );
+                            }
+                        }
+                    }
+                },
+
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+
+                        ticks: {
+                            maxTicksLimit: 12
+                        }
+                    },
+
+                    y: {
+                        beginAtZero: true,
+
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 100000000) {
+                                    return (
+                                        value / 100000000
+                                    ).toFixed(1) + " 億";
+                                }
+
+                                if (value >= 10000) {
+                                    return (
+                                        value / 10000
+                                    ).toFixed(0) + " 萬";
+                                }
+
+                                return value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 </html>
