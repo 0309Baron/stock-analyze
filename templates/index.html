@@ -1,97 +1,306 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>Taiwan Stock Intelligence Platform</title>
-    <link rel="stylesheet" href="/static/style.css">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>台股每日數據分析平台</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
 </head>
+
 <body>
-    <header>
-        <h1>Taiwan Stock Intelligence Platform</h1>
-        <p>台股智慧分析平台</p>
+    <header class="site-header">
+        <div class="header-content">
+            <div>
+                <p class="header-label">TAIWAN STOCK ANALYSIS</p>
+                <h1>台股每日數據分析平台</h1>
+                <p class="header-description">
+                    結合台股歷史資料、技術指標與規則式分析
+                </p>
+            </div>
+        </div>
     </header>
 
-    <main>
-        {% if error_message %}
-            <section class="card">
-                <h2>System Message</h2>
-                <p>{{ error_message }}</p>
+    <main class="container">
+
+        <!-- 股票搜尋區域 -->
+        <section class="search-section">
+            <form method="POST" class="search-form">
+                <div class="input-group">
+                    <label for="stock_code">
+                        股票代碼
+                    </label>
+
+                    <input
+                        type="text"
+                        id="stock_code"
+                        name="stock_code"
+                        value="{{ stock_code }}"
+                        placeholder="例如：2330"
+                        maxlength="6"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
+
+                <button type="submit">
+                    開始分析
+                </button>
+            </form>
+
+            {% if available_stocks %}
+                <div class="available-stocks">
+                    <span>目前資料庫已有：</span>
+
+                    {% for stock in available_stocks %}
+                        <span class="stock-tag">
+                            {{ stock.stock_code }}
+                            {{ stock.stock_name }}
+                        </span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-hint">
+                    資料庫目前沒有股票資料，請先執行
+                    import_history.py。
+                </p>
+            {% endif %}
+        </section>
+
+        <!-- 錯誤訊息 -->
+        {% if error %}
+            <section class="alert alert-error">
+                <strong>查詢失敗</strong>
+                <p>{{ error }}</p>
+
+                <p class="alert-command">
+                    尚未匯入資料時，可以執行：
+                    <code>
+                        python import_history.py 2330 台積電 --months 6
+                    </code>
+                </p>
             </section>
         {% endif %}
 
-        <section class="card">
-            <h2>Stock Analysis</h2>
-            <p>
-                Enter a stock code or stock name.
-                The system will directly load the stock code and stock name from TWSE,
-                then download historical trading data and generate analysis results.
-            </p>
+        <!-- 分析結果 -->
+        {% if result %}
+            <section class="result-header">
+                <div>
+                    <p class="result-label">LATEST ANALYSIS</p>
 
-            <form action="/analyze" method="POST">
-                <label>Stock Code or Name:</label>
-                <input
-                    type="text"
-                    name="keyword"
-                    list="stockList"
-                    placeholder="Example: 2330 or 台積電"
-                    required
-                >
+                    <h2>
+                        {{ result.stock_name }}
+                        <span>{{ result.stock_code }}</span>
+                    </h2>
 
-                <datalist id="stockList">
-                    {% for stock in stock_list %}
-                        <option value="{{ stock.code }}">{{ stock.code }} {{ stock.name }}</option>
-                        <option value="{{ stock.name }}">{{ stock.code }} {{ stock.name }}</option>
-                    {% endfor %}
-                </datalist>
+                    <p>
+                        分析日期：{{ result.trade_date }}
+                        ・歷史資料：{{ result.data_count }} 筆
+                    </p>
+                </div>
 
-                <button type="submit">Analyze</button>
-            </form>
+                <div class="trend-badge">
+                    {{ result.trend }}
+                </div>
+            </section>
 
-            <p>
-                <a href="/reload-stocks">Reload TWSE Stock List</a>
-            </p>
-        </section>
+            <!-- 當日行情 -->
+            <section class="section-block">
+                <div class="section-title">
+                    <div>
+                        <p class="section-number">01</p>
+                        <h3>當日行情</h3>
+                    </div>
 
-        <section class="card">
-            <h2>Project Information</h2>
-            <ul>
-                <li>Project Name: Taiwan Stock Intelligence Platform</li>
-                <li>Project Type: Team Project</li>
-                <li>Topic: Web Services, Database, and Stock Data Analysis</li>
-                <li>Purpose: Build a web-based platform for Taiwan stock data analysis and visualization.</li>
-            </ul>
-        </section>
+                    {% if result.daily_return_pct is not none %}
+                        <div
+                            class="daily-change
+                            {% if result.daily_return_pct > 0 %}
+                                positive
+                            {% elif result.daily_return_pct < 0 %}
+                                negative
+                            {% else %}
+                                neutral
+                            {% endif %}"
+                        >
+                            {% if result.daily_return_pct > 0 %}
+                                +
+                            {% endif %}
 
-        <section class="card">
-            <h2>System Architecture</h2>
-            <p>
-                The system uses Flask as the web server.
-                After receiving a stock code or stock name, it searches the TWSE stock list,
-                downloads historical trading data, stores the data into SQLite,
-                and uses Pandas to generate technical indicators and rule-based analysis.
-            </p>
+                            {{ result.daily_return_pct }}%
+                        </div>
+                    {% endif %}
+                </div>
 
-            <ul>
-                <li>User Browser</li>
-                <li>Flask Web Server</li>
-                <li>TWSE Stock List API</li>
-                <li>Historical Stock Data Crawler</li>
-                <li>SQLite Database</li>
-                <li>Pandas Analysis Module</li>
-            </ul>
-        </section>
+                <div class="data-grid">
+                    <article class="data-card">
+                        <p>開盤價</p>
+                        <strong>
+                            {{ result.open_price | number }}
+                        </strong>
+                    </article>
 
-        <section class="card">
-            <h2>Main Functions</h2>
-            <ol>
-                <li>Load stock codes and stock names directly from TWSE.</li>
-                <li>Search stocks by code or name.</li>
-                <li>Download historical stock trading data.</li>
-                <li>Store stock data in SQLite database.</li>
-                <li>Calculate MA5, MA20, daily return, volume ratio, and volatility.</li>
-                <li>Generate trend score and analysis reasons.</li>
-            </ol>
-        </section>
+                    <article class="data-card">
+                        <p>最高價</p>
+                        <strong>
+                            {{ result.high_price | number }}
+                        </strong>
+                    </article>
+
+                    <article class="data-card">
+                        <p>最低價</p>
+                        <strong>
+                            {{ result.low_price | number }}
+                        </strong>
+                    </article>
+
+                    <article class="data-card highlight-card">
+                        <p>收盤價</p>
+                        <strong>
+                            {{ result.close_price | number }}
+                        </strong>
+                    </article>
+
+                    <article class="data-card wide-card">
+                        <p>成交量</p>
+                        <strong>
+                            {{ result.trade_volume | number }}
+                        </strong>
+                        <span>股</span>
+                    </article>
+                </div>
+            </section>
+
+            <!-- 技術指標 -->
+            <section class="section-block">
+                <div class="section-title">
+                    <div>
+                        <p class="section-number">02</p>
+                        <h3>技術指標</h3>
+                    </div>
+                </div>
+
+                <div class="indicator-grid">
+                    <article class="indicator-card">
+                        <p>MA5</p>
+
+                        <strong>
+                            {{ result.ma5 | number }}
+                        </strong>
+
+                        <span>5 日平均收盤價</span>
+                    </article>
+
+                    <article class="indicator-card">
+                        <p>MA20</p>
+
+                        <strong>
+                            {{ result.ma20 | number }}
+                        </strong>
+
+                        <span>20 日平均收盤價</span>
+                    </article>
+
+                    <article class="indicator-card">
+                        <p>近五日漲跌幅</p>
+
+                        <strong>
+                            {% if result.momentum_5d_pct is not none %}
+                                {% if result.momentum_5d_pct > 0 %}
+                                    +
+                                {% endif %}
+
+                                {{ result.momentum_5d_pct }}%
+                            {% else %}
+                                --
+                            {% endif %}
+                        </strong>
+
+                        <span>短期價格動能</span>
+                    </article>
+
+                    <article class="indicator-card">
+                        <p>成交量倍率</p>
+
+                        <strong>
+                            {% if result.volume_ratio is not none %}
+                                {{ result.volume_ratio }} 倍
+                            {% else %}
+                                --
+                            {% endif %}
+                        </strong>
+
+                        <span>今日量／前五日平均量</span>
+                    </article>
+
+                    <article class="indicator-card">
+                        <p>20 日波動度</p>
+
+                        <strong>
+                            {% if result.volatility_20d_pct is not none %}
+                                {{ result.volatility_20d_pct }}%
+                            {% else %}
+                                --
+                            {% endif %}
+                        </strong>
+
+                        <span>近期報酬率標準差</span>
+                    </article>
+                </div>
+            </section>
+
+            <!-- 綜合分析 -->
+            <section class="analysis-section">
+                <div class="score-area">
+                    <p class="section-number">03</p>
+                    <h3>綜合分析</h3>
+
+                    <div class="score-value">
+                        <strong>{{ result.score }}</strong>
+                        <span>/ 100</span>
+                    </div>
+
+                    <div class="score-bar">
+                        <div
+                            class="score-fill"
+                            style="width: {{ result.score }}%;"
+                        ></div>
+                    </div>
+
+                    <p class="trend-text">
+                        系統趨勢：
+                        <strong>{{ result.trend }}</strong>
+                    </p>
+                </div>
+
+                <div class="reason-area">
+                    <h3>判斷原因</h3>
+
+                    <ul>
+                        {% for reason in result.reasons %}
+                            <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <section class="disclaimer">
+                本結果是根據歷史價格、成交量及規則式條件產生，
+                僅供課程學習與數據分析使用，不構成投資建議。
+            </section>
+        {% endif %}
     </main>
+
+    <footer>
+        <p>台股每日數據分析平台・Internet Final Project</p>
+    </footer>
 </body>
 </html>
