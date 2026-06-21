@@ -5,7 +5,7 @@ from typing import Any
 
 from flask import Flask, render_template, request
 
-from analyzer import analyze_stock, get_chart_data
+from analyzer import analyze_stock, get_chart_data, run_backtest
 from database import create_tables, get_connection
 from fetch_stock import fetch_all_stocks
 from import_history import import_history
@@ -38,13 +38,28 @@ def get_available_stocks() -> list[dict[str, str]]:
     with get_connection() as connection:
         rows = connection.execute(query).fetchall()
 
-    return [
-        {
-            "stock_code": row["stock_code"],
+    available_stocks = []
+
+    for row in rows:
+        stock_code = row["stock_code"]
+        
+        # 檢查該股票的實體報告檔案是否存在
+        report_path = os.path.join(
+            app.root_path, 
+            'templates', 
+            'reports', 
+            f'report_{stock_code}.html'
+        )
+        has_report = os.path.exists(report_path)
+
+        # 將結果包裝進字典
+        available_stocks.append({
+            "stock_code": stock_code,
             "stock_name": row["stock_name"],
-        }
-        for row in rows
-    ]
+            "has_report": has_report  # 新增這個布林值欄位
+        })
+
+    return available_stocks
 
 
 def find_stock_information(
@@ -216,6 +231,7 @@ def index():
     notice = None
     stock_code = ""
     has_report = False # 預設為沒有報告
+    backtest_result = None
 
     if request.method == "POST":
         stock_code = (
@@ -241,6 +257,12 @@ def index():
 
                 if analysis.get("success"):
                     result = analysis
+                    backtest_result = run_backtest(
+                        stock_code, 
+                        buy_threshold=75,  # 高於 75 分進場
+                        stop_loss_pct=-5.0, 
+                        trailing_stop_pct=-15.0
+                    )
 
                 else:
                     # 找不到時，自動下載歷史資料
@@ -287,6 +309,7 @@ def index():
         "index.html",
         result=result,
         chart_data=chart_data,
+        backtest_result=backtest_result,
         error=error,
         notice=notice,
         stock_code=stock_code,

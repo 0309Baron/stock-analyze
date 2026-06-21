@@ -63,9 +63,13 @@
                     <span>目前資料庫已有：</span>
 
                     {% for stock in available_stocks %}
-                        <span class="stock-tag">
-                            {{ stock.stock_code }}
-                            {{ stock.stock_name }}
+                        <span class="stock-tag" 
+                            onclick="quickSearch('{{ stock.stock_code }}')"
+                            title="點擊直接分析 {{ stock.stock_name }}">
+                            {{ stock.stock_code }} {{ stock.stock_name }}
+                            {% if stock.has_report %}
+                                <span style="font-size: 0.9em; margin-left: 2px;">📖</span>
+                            {% endif %}
                         </span>
                     {% endfor %}
                 </div>
@@ -298,7 +302,7 @@
             <section class="analysis-section">
                 <div class="score-area">
                     <p class="section-number">04</p>
-                    <h3>綜合分析</h3>
+                    <h3>技術面評分</h3>
 
                     <div class="score-value">
                         <strong>{{ result.score }}</strong>
@@ -328,6 +332,71 @@
                     </ul>
                 </div>
             </section>
+
+            {% if backtest_result and backtest_result.success %}
+            <section class="section-block">
+                <div class="section-title">
+                    <div>
+                        <p class="section-number">05</p>
+                        <h3>評分歷史可信度</h3>
+                    </div>
+                    <p class="chart-description">
+                        進出場機制：技術面評分 ≥ {{ backtest_result.buy_threshold }} 進場；跌破月線、高點回落 10% 或虧損 5% 退場（已計入 0.4% 摩擦成本）
+                    </p>
+                </div>
+
+                {% if backtest_result.total_trades > 0 %}
+                <div class="indicator-grid">
+                    <article class="indicator-card">
+                        <p>歷史觸發次數</p>
+                        <strong>{{ backtest_result.total_trades }} 次</strong>
+                        <span>滿足系統進出邏輯</span>
+                    </article>
+
+                    <article class="indicator-card">
+                        <p>回測勝率</p>
+                        <strong class="{% if backtest_result.win_rate >= 50 %}positive{% else %}negative{% endif %}">
+                            {{ backtest_result.win_rate }}%
+                        </strong>
+                        <span>正報酬結束之比例</span>
+                    </article>
+
+                    <article class="indicator-card">
+                        <p>單次期望報酬</p>
+                        <strong class="{% if backtest_result.avg_profit > 0 %}positive{% else %}negative{% endif %}">
+                            {% if backtest_result.avg_profit > 0 %}+{% endif %}{{ backtest_result.avg_profit }}%
+                        </strong>
+                        <span>每次訊號循環之平均損益</span>
+                    </article>
+                </div>
+                
+                <div style="margin-top: 20px; font-size: 0.9em; color: var(--ink-muted);">
+                    <h4>最近三次紀錄（僅包含有出場）：</h4>
+                    <ul style="list-style-type: none; padding-left: 0;">
+                        {% for trade in backtest_result.recent_trades %}
+                            <li>
+                                <strong>{{ trade.buy_date }}</strong> 進場 ({{ trade.buy_price }}) → 
+                                <strong>{{ trade.sell_date }}</strong> 退場 ({{ trade.sell_price }}) 
+                                <br>
+                                <span style="font-size: 0.85em; color: var(--ink-faint);">
+                                    出場原因：{{ trade.reason }}
+                                </span>
+                                ｜ 淨損益：
+                                <span class="{% if trade.profit_pct > 0 %}positive{% else %}negative{% endif %}">
+                                    {{ trade.profit_pct }}%
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                {% else %}
+                <div class="empty-hint" style="text-align: left; margin-top: 15px;">
+                    歷史資料庫中，尚無出現完成此分數循環的紀錄。
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
 
             <section class="disclaimer">
                 本結果是根據歷史價格、成交量及規則式條件產生，
@@ -534,5 +603,16 @@
         });
     </script>
     {% endif %}
+    <script>
+        function quickSearch(stockCode) {
+            // 1. 找到輸入框，並把代碼填進去
+            const inputField = document.getElementById('stock_code');
+            inputField.value = stockCode;
+            
+            // 2. 找到搜尋表單，並觸發送出 (submit)
+            const searchForm = document.querySelector('.search-form');
+            searchForm.submit();
+        }
+    </script>
 </body>
 </html>

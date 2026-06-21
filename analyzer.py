@@ -149,12 +149,15 @@ def calculate_score(latest: pd.Series) -> tuple[int, str, list[str]]:
     score = 50
     reasons: list[str] = []
 
-    close_price = latest["close_price"]
-    ma5 = latest["ma5"]
-    ma20 = latest["ma20"]
-    daily_return = latest["daily_return_pct"]
-    momentum_5d = latest["momentum_5d_pct"]
-    volume_ratio = latest["volume_ratio"]
+    close_price = latest.get("close_price")
+    open_price = latest.get("open_price")
+    low_price = latest.get("low_price")
+    ma5 = latest.get("ma5")
+    ma20 = latest.get("ma20")
+    volume_ratio = latest.get("volume_ratio")
+    volatility = latest.get("volatility_20d_pct")
+    momentum_5d = latest.get("momentum_5d_pct")
+    daily_return = latest.get("daily_return_pct")
 
     # 收盤價與短期均線
     if pd.notna(ma5):
@@ -180,27 +183,27 @@ def calculate_score(latest: pd.Series) -> tuple[int, str, list[str]]:
 
     # 5 日動能
     if pd.notna(momentum_5d):
-        if momentum_5d >= 3:
+        if momentum_5d >= 10:
             score += 10
-            reasons.append("近 5 個交易日漲幅超過 3%")
+            reasons.append("近 5 個交易日漲幅超過 10%")
         elif momentum_5d > 0:
             score += 5
             reasons.append("近 5 個交易日股價上漲")
-        elif momentum_5d <= -3:
+        elif momentum_5d <= -10:
             score -= 10
-            reasons.append("近 5 個交易日跌幅超過 3%")
+            reasons.append("近 5 個交易日跌幅超過 10%")
         else:
             score -= 5
             reasons.append("近 5 個交易日股價下跌")
 
     # 當日漲跌
     if pd.notna(daily_return):
-        if daily_return >= 2:
+        if daily_return >= 3:
             score += 5
-            reasons.append("當日漲幅超過 2%")
-        elif daily_return <= -2:
+            reasons.append("當日漲幅超過 3%")
+        elif daily_return <= -3:
             score -= 5
-            reasons.append("當日跌幅超過 2%")
+            reasons.append("當日跌幅超過 3%")
 
     # 量價關係
     if pd.notna(volume_ratio):
@@ -442,6 +445,108 @@ def parse_arguments() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def run_backtest(
+    stock_code: str, 
+    buy_threshold: int = 75, 
+    stop_loss_pct: float = -5.0,      # 初始嚴格停損：-5%
+    trailing_stop_pct: float = -8.0   # 移動停利：從高點回落 8%
+) -> dict[str, Any]:
+    """執行歷史回測，採用獨立的技術與風控出場邏輯。"""
+    
+    dataframe = get_stock_history(stock_code)
+    if dataframe.empty:
+        return {"success": False}
+        
+    dataframe = calculate_indicators(dataframe)
+    if len(dataframe) < 30:
+        return {"success": False}
+
+    trades = []
+    friction_cost = 0.004 # 交易手續費與稅金
+
+    # 狀態記錄變數
+    in_position = False
+    buy_date = None
+    buy_price = 0.0
+    highest_price = 0.0  # 紀錄持有期間的最高價
+
+    for i in range(20, len(dataframe) - 1):
+        current_day = dataframe.iloc[i]
+        score, _, _ = calculate_score(current_day)
+
+        if not in_position:
+            # 【進場邏輯】分數大於等於買進標準
+            if score >= buy_threshold:
+                buy_day = dataframe.iloc[i + 1]
+                buy_price = buy_day["open_price"]
+                buy_date = buy_day["trade_date"].strftime("%Y-%m-%d")
+                highest_price = buy_price # 初始化最高價
+                in_position = True
+        
+        else:
+            # 更新持有期間的最高價
+            if current_day["high_price"] > highest_price:
+                highest_price = current_day["high_price"]
+
+            # 計算當前帳面損益 與 從高點回落的幅度
+            current_profit_pct = (current_day["close_price"] - buy_price) / buy_price * 100
+            drawdown_from_high = (current_day["close_price"] - highest_price) / highest_price * 100
+            
+            ma20 = current_day["ma20"]
+            
+            # 【出場邏輯】滿足以下任一條件即出場
+            # 1. 跌破月線 (技術防線)
+            # 2. 從最高點回落超過設定幅度 (動能衰退)
+            # 3. 帳面直接虧損超過停損標準 (保護本金)
+            
+            exit_signal = False
+            exit_reason = ""
+
+            if pd.notna(ma20) and current_day["close_price"] < ma20:
+                exit_signal = True
+                exit_reason = "跌破月線"
+            elif drawdown_from_high <= trailing_stop_pct:
+                exit_signal = True
+                exit_reason = f"高點回落 {trailing_stop_pct}%"
+            elif current_profit_pct <= stop_loss_pct:
+                exit_signal = True
+                exit_reason = f"觸及 {stop_loss_pct}% 停損"
+
+            if exit_signal:
+                sell_day = dataframe.iloc[i + 1]
+                sell_price = sell_day["open_price"]
+                sell_date = sell_day["trade_date"].strftime("%Y-%m-%d")
+
+                raw_profit_pct = (sell_price - buy_price) / buy_price
+                net_profit_pct = (raw_profit_pct - friction_cost) * 100
+
+                trades.append({
+                    "buy_date": buy_date,
+                    "sell_date": sell_date,
+                    "buy_price": safe_round(buy_price),
+                    "sell_price": safe_round(sell_price),
+                    "profit_pct": safe_round(net_profit_pct),
+                    "reason": exit_reason
+                })
+                
+                in_position = False
+
+    total_trades = len(trades)
+    if total_trades == 0:
+        return {"success": True, "total_trades": 0}
+
+    winning_trades = [t for t in trades if t["profit_pct"] > 0]
+    win_rate = (len(winning_trades) / total_trades) * 100
+    avg_profit = sum(t["profit_pct"] for t in trades) / total_trades
+
+    return {
+        "success": True,
+        "total_trades": total_trades,
+        "win_rate": safe_round(win_rate),
+        "avg_profit": safe_round(avg_profit),
+        "buy_threshold": buy_threshold,
+        "recent_trades": trades[-3:]
+    }
 
 def main() -> None:
     args = parse_arguments()
