@@ -449,7 +449,7 @@ def run_backtest(
     stock_code: str, 
     buy_threshold: int = 75, 
     stop_loss_pct: float = -5.0,      # 初始嚴格停損：-5%
-    trailing_stop_pct: float = -8.0   # 移動停利：從高點回落 8%
+    trailing_stop_pct: float = -15.0   # 移動停利：從高點回落 15%
 ) -> dict[str, Any]:
     """執行歷史回測，採用獨立的技術與風控出場邏輯。"""
     
