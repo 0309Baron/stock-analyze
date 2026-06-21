@@ -59,24 +59,27 @@
             </form>
 
             {% if available_stocks %}
-                <div class="available-stocks">
-                    <span>目前資料庫已有：</span>
-
-                    {% for stock in available_stocks %}
-                        <span class="stock-tag" 
-                            onclick="quickSearch('{{ stock.stock_code }}')"
-                            title="點擊直接分析 {{ stock.stock_name }}">
-                            {{ stock.stock_code }} {{ stock.stock_name }}
-                            {% if stock.has_report %}
-                                <span style="font-size: 0.9em; margin-left: 2px;">📖</span>
-                            {% endif %}
-                        </span>
-                    {% endfor %}
-                </div>
+                <details class="available-stocks-details">
+                    <summary>
+                        目前資料庫已有 {{ available_stocks|length }} 檔股票（點擊展開）
+                    </summary>
+                    
+                    <div class="tags-container">
+                        {% for stock in available_stocks %}
+                            <span class="stock-tag {% if stock.has_report %}has-report{% endif %}" 
+                                onclick="quickSearch('{{ stock.stock_code }}')"
+                                title="點擊直接分析 {{ stock.stock_name }}">
+                                {{ stock.stock_code }} {{ stock.stock_name }}
+                                {% if stock.has_report %}
+                                    <span style="font-size: 0.9em; margin-left: 2px;">📖</span>
+                                {% endif %}
+                            </span>
+                        {% endfor %}
+                    </div>
+                </details>
             {% else %}
                 <p class="empty-hint">
-                    資料庫目前沒有股票資料，請先執行
-                    import_history.py。
+                    資料庫目前沒有股票資料，請先執行 import_history.py。
                 </p>
             {% endif %}
         </section>

@@ -155,6 +155,58 @@ body {
     font-size: 0.88rem;
 }
 
+.available-stocks-details {
+    margin-top: 15px;
+    padding: 12px 15px;
+    background-color: #ffffff; /* 如果你有設定 var(--paper-card) 可以替換 */
+    border: 1px solid rgba(26, 20, 16, 0.12);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+/* --- 折疊區塊的標題 (點擊區) --- */
+.available-stocks-details summary {
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #5a5045; /* 略深的灰色，避免喧賓奪主 */
+    list-style: none; /* 隱藏原生醜醜的黑色三角形 */
+    user-select: none;
+    outline: none;
+    display: flex;
+    align-items: center;
+}
+
+/* 針對 Safari 隱藏原生三角形 */
+.available-stocks-details summary::-webkit-details-marker {
+    display: none;
+}
+
+/* 自己做一個有質感的展開箭頭 */
+.available-stocks-details summary::before {
+    content: "▶";
+    display: inline-block;
+    font-size: 0.8em;
+    margin-right: 8px;
+    color: #315efb; /* 使用你的主題藍色 */
+    transition: transform 0.2s ease-in-out;
+}
+
+/* 當 details 展開時，箭頭往下轉 90 度 */
+.available-stocks-details[open] summary::before {
+    transform: rotate(90deg);
+}
+
+/* --- 展開後的標籤容器排版 --- */
+.tags-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed rgba(26, 20, 16, 0.12); /* 加上分隔線增加層次 */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 .stock-tag {
     padding: 6px 10px;
     color: #344054;
