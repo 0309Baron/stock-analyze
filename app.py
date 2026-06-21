@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from threading import Lock
 from typing import Any
 
@@ -191,6 +192,19 @@ def format_number(value: Any) -> str:
     except (TypeError, ValueError):
         return str(value)
 
+# --- 1. 新增：專門用來顯示深度報告的路由 ---
+@app.route("/report/<stock_code>")
+def view_report(stock_code):
+    """讀取並顯示個別股票的深度分析報告"""
+    # 組合出預期的檔案路徑，例如 templates/reports/report_3413.html
+    report_filename = f"reports/report_{stock_code}.html"
+    report_path = os.path.join(app.root_path, 'templates', report_filename)
+    
+    # 如果檔案存在，就渲染該報告；如果不存在，回傳 404 錯誤
+    if os.path.exists(report_path):
+        return render_template(report_filename)
+    else:
+        abort(404, description="目前尚未建立該檔股票的深度分析報告。")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -201,6 +215,7 @@ def index():
     error = None
     notice = None
     stock_code = ""
+    has_report = False # 預設為沒有報告
 
     if request.method == "POST":
         stock_code = (
@@ -251,7 +266,15 @@ def index():
             except Exception as exception:
                 print(f"分析錯誤：{exception}")
                 error = "股票分析時發生錯誤。"
-
+    # 新增：檢查該股票是否有實體的 HTML 報告檔案
+    if stock_code:
+        expected_report_path = os.path.join(
+            app.root_path, 
+            'templates', 
+            'reports', 
+            f'report_{stock_code}.html'
+        )
+        has_report = os.path.exists(expected_report_path)
     try:
         # 放在分析之後，剛匯入的股票才會立即出現在清單
         available_stocks = get_available_stocks()
@@ -268,6 +291,7 @@ def index():
         notice=notice,
         stock_code=stock_code,
         available_stocks=available_stocks,
+        has_report=has_report
     )
 
 

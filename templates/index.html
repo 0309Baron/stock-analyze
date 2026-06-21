@@ -109,8 +109,16 @@
                     </p>
                 </div>
 
-                <div class="trend-badge">
-                    {{ result.trend }}
+                <div class="result-actions">
+                    <div class="trend-badge">
+                        {{ result.trend }}
+                    </div>
+
+                    {% if has_report %}
+                        <a href="{{ url_for('view_report', stock_code=result.stock_code) }}" target="_blank" class="report-button">
+                            閱讀完整質化分析報告
+                        </a>
+                    {% endif %}
                 </div>
             </section>
         <!-- 歷史走勢圖 -->
