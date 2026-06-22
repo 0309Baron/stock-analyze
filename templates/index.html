@@ -15,6 +15,7 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -23,7 +24,9 @@
         <div class="header-content">
             <div>
                 <p class="header-label">TAIWAN STOCK ANALYSIS</p>
+
                 <h1>台股每日數據分析平台</h1>
+
                 <p class="header-description">
                     結合台股歷史資料、技術指標與規則式分析
                 </p>
@@ -66,12 +69,15 @@
                     
                     <div class="tags-container">
                         {% for stock in available_stocks %}
-                            <span class="stock-tag {% if stock.has_report %}has-report{% endif %}" 
+                            <span
+                                class="stock-tag {% if stock.has_report %}has-report{% endif %}" 
                                 onclick="quickSearch('{{ stock.stock_code }}')"
-                                title="點擊直接分析 {{ stock.stock_name }}">
+                                title="點擊直接分析 {{ stock.stock_name }}"
+                            >
                                 {{ stock.stock_code }} {{ stock.stock_name }}
+
                                 {% if stock.has_report %}
-                                    <span style="font-size: 0.9em; margin-left: 2px;">📖</span>
+                                    <span class="report-icon">📖</span>
                                 {% endif %}
                             </span>
                         {% endfor %}
@@ -80,6 +86,82 @@
             {% else %}
                 <p class="empty-hint">
                     資料庫目前沒有股票資料，請先執行 import_history.py。
+                </p>
+            {% endif %}
+        </section>
+
+        <!-- 觀察清單 -->
+        <section class="watchlist-section">
+            <div class="section-title">
+                <div>
+                    <p class="section-number">WATCH</p>
+                    <h3>觀察清單</h3>
+                </div>
+
+                <p class="chart-description">
+                    將常看的股票加入清單，之後可以快速分析。
+                </p>
+            </div>
+
+            <form
+                action="{{ url_for('add_watchlist') }}"
+                method="POST"
+                class="watchlist-form"
+            >
+                <input
+                    type="text"
+                    name="watch_stock_code"
+                    placeholder="例如：2330"
+                    maxlength="6"
+                    autocomplete="off"
+                    required
+                >
+
+                <button type="submit">
+                    加入觀察清單
+                </button>
+            </form>
+
+            {% if watchlist and watchlist|length > 0 %}
+                <div class="watchlist-grid">
+                    {% for stock in watchlist %}
+                        <article class="watchlist-card">
+                            <div>
+                                <p class="watchlist-code">
+                                    {{ stock.stock_code }}
+                                </p>
+
+                                <h4>
+                                    {{ stock.stock_name }}
+                                </h4>
+                            </div>
+
+                            <div class="watchlist-actions">
+                                <button
+                                    type="button"
+                                    onclick="quickSearch('{{ stock.stock_code }}')"
+                                >
+                                    Analyze
+                                </button>
+
+                                <form
+                                    action="{{ url_for('remove_watchlist', stock_code=stock.stock_code) }}"
+                                    method="POST"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="remove-button"
+                                    >
+                                        Remove
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-hint">
+                    目前觀察清單沒有股票。
                 </p>
             {% endif %}
         </section>
@@ -122,39 +204,44 @@
                     </div>
 
                     {% if has_report %}
-                        <a href="{{ url_for('view_report', stock_code=result.stock_code) }}" target="_blank" class="report-button">
+                        <a
+                            href="{{ url_for('view_report', stock_code=result.stock_code) }}"
+                            target="_blank"
+                            class="report-button"
+                        >
                             閱讀完整質化分析報告
                         </a>
                     {% endif %}
                 </div>
             </section>
-        <!-- 歷史走勢圖 -->
-        {% if chart_data %}
-            <section class="section-block chart-section">
-                <div class="section-title">
-                    <div>
-                        <p class="section-number">01</p>
-                        <h3>近 60 個交易日走勢</h3>
+
+            <!-- 歷史走勢圖 -->
+            {% if chart_data %}
+                <section class="section-block chart-section">
+                    <div class="section-title">
+                        <div>
+                            <p class="section-number">01</p>
+                            <h3>近 60 個交易日走勢</h3>
+                        </div>
+
+                        <p class="chart-description">
+                            收盤價、MA5 與 MA20
+                        </p>
                     </div>
 
-                    <p class="chart-description">
-                        收盤價、MA5 與 MA20
-                    </p>
-                </div>
+                    <div class="chart-wrapper price-chart-wrapper">
+                        <canvas id="priceChart"></canvas>
+                    </div>
 
-                <div class="chart-wrapper price-chart-wrapper">
-                    <canvas id="priceChart"></canvas>
-                </div>
+                    <div class="volume-title">
+                        <h4>每日成交量</h4>
+                    </div>
 
-                <div class="volume-title">
-                    <h4>每日成交量</h4>
-                </div>
-
-                <div class="chart-wrapper volume-chart-wrapper">
-                    <canvas id="volumeChart"></canvas>
-                </div>
-            </section>
-        {% endif %}
+                    <div class="chart-wrapper volume-chart-wrapper">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </section>
+            {% endif %}
             
             <!-- 當日行情 -->
             <section class="section-block">
@@ -187,6 +274,7 @@
                 <div class="data-grid">
                     <article class="data-card">
                         <p>開盤價</p>
+
                         <strong>
                             {{ result.open_price | number }}
                         </strong>
@@ -194,6 +282,7 @@
 
                     <article class="data-card">
                         <p>最高價</p>
+
                         <strong>
                             {{ result.high_price | number }}
                         </strong>
@@ -201,6 +290,7 @@
 
                     <article class="data-card">
                         <p>最低價</p>
+
                         <strong>
                             {{ result.low_price | number }}
                         </strong>
@@ -208,6 +298,7 @@
 
                     <article class="data-card highlight-card">
                         <p>收盤價</p>
+
                         <strong>
                             {{ result.close_price | number }}
                         </strong>
@@ -215,9 +306,11 @@
 
                     <article class="data-card wide-card">
                         <p>成交量</p>
+
                         <strong>
                             {{ result.trade_volume | number }}
                         </strong>
+
                         <span>股</span>
                     </article>
                 </div>
@@ -305,6 +398,7 @@
             <section class="analysis-section">
                 <div class="score-area">
                     <p class="section-number">04</p>
+
                     <h3>技術面評分</h3>
 
                     <div class="score-value">
@@ -328,111 +422,184 @@
                 <div class="reason-area">
                     <h3>判斷原因</h3>
 
-                    <ul>
-                        {% for reason in result.reasons %}
-                            <li>{{ reason }}</li>
-                        {% endfor %}
-                    </ul>
+                    {% if result.reasons and result.reasons|length > 0 %}
+                        <ul>
+                            {% for reason in result.reasons %}
+                                <li>{{ reason }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="empty-hint">
+                            No analysis reasons were generated.
+                        </p>
+                    {% endif %}
                 </div>
             </section>
 
             {% if backtest_result and backtest_result.success %}
-            <section class="section-block" id="backtest-section">
-                <div class="section-title">
-                    <div>
-                        <p class="section-number">05</p>
-                        <h3>評分歷史可信度</h3>
-                    </div>
-                    <p class="chart-description">
-                        進出場機制：技術面評分 ≥ {{ backtest_result.buy_threshold }} 進場；跌破月線、高點回落 {{ backtest_result.trailing_stop_pct | abs }} % 或虧損 {{ backtest_result.stop_loss_pct | abs }} % 退場（已計入 0.4% 摩擦成本）
-                    </p>
-                </div>
-
-                <form method="POST" action="#backtest-section" style="margin-bottom: 25px;">
-                    <input type="hidden" name="stock_code" value="{{ result.stock_code }}">
-                    
-                    <details class="advanced-settings">
-                        <summary style="cursor: pointer; font-size: 0.9em; color: var(--ink-muted); list-style: none;">
-                            <span style="color: #315efb; margin-right: 5px;">▶</span> ⚙️ 自訂回測參數並重新計算
-                        </summary>
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; margin-top: 12px; padding: 15px; background: #f9fafb; border-radius: 8px; border: 1px solid rgba(26, 20, 16, 0.08); align-items: end;">
-                            
-                            <div>
-                                <label for="buy_threshold" style="font-size: 12px; color: var(--ink-muted); display: block; margin-bottom: 6px;">買進門檻 (分數)</label>
-                                <input type="number" id="buy_threshold" name="buy_threshold" value="{{ backtest_result.buy_threshold }}" min="40" max="90" style="width: 100%; padding: 8px; border: 1px solid rgba(26,20,16,0.15); border-radius: 4px;">
-                            </div>
-
-                            <div>
-                                <label for="stop_loss" style="font-size: 12px; color: var(--ink-muted); display: block; margin-bottom: 6px;">絕對停損 (%)</label>
-                                <input type="number" id="stop_loss" name="stop_loss" value="{{ backtest_result.stop_loss_pct }}" max="-1" step="0.5" style="width: 100%; padding: 8px; border: 1px solid rgba(26,20,16,0.15); border-radius: 4px;">
-                            </div>
-
-                            <div>
-                                <label for="trailing_stop" style="font-size: 12px; color: var(--ink-muted); display: block; margin-bottom: 6px;">移動停利 (%)</label>
-                                <input type="number" id="trailing_stop" name="trailing_stop" value="{{ backtest_result.trailing_stop_pct }}" max="-1" step="0.5" style="width: 100%; padding: 8px; border: 1px solid rgba(26,20,16,0.15); border-radius: 4px;">
-                            </div>
-                            
-                            <div>
-                                <button type="submit" style="padding: 8px 16px; background-color: #315efb; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                                    套用參數
-                                </button>
-                            </div>
+                <section class="section-block" id="backtest-section">
+                    <div class="section-title">
+                        <div>
+                            <p class="section-number">05</p>
+                            <h3>評分歷史可信度</h3>
                         </div>
-                    </details>
-                </form>
 
-                {% if backtest_result.total_trades > 0 %}
-                <div class="indicator-grid">
-                    <article class="indicator-card">
-                        <p>歷史觸發次數</p>
-                        <strong>{{ backtest_result.total_trades }} 次</strong>
-                        <span>滿足系統進出邏輯</span>
-                    </article>
+                        <p class="chart-description">
+                            進出場機制：技術面評分 ≥ {{ backtest_result.buy_threshold }} 進場；
+                            跌破月線、高點回落 {{ backtest_result.trailing_stop_pct | abs }} %
+                            或虧損 {{ backtest_result.stop_loss_pct | abs }} % 退場
+                            （已計入 0.4% 摩擦成本）
+                        </p>
+                    </div>
 
-                    <article class="indicator-card">
-                        <p>回測勝率</p>
-                        <strong class="{% if backtest_result.win_rate >= 50 %}positive{% else %}negative{% endif %}">
-                            {{ backtest_result.win_rate }}%
-                        </strong>
-                        <span>正報酬結束之比例</span>
-                    </article>
+                    <form
+                        method="POST"
+                        action="#backtest-section"
+                        class="backtest-form"
+                    >
+                        <input
+                            type="hidden"
+                            name="stock_code"
+                            value="{{ result.stock_code }}"
+                        >
+                        
+                        <details class="advanced-settings">
+                            <summary>
+                                <span>▶</span>
+                                ⚙️ 自訂回測參數並重新計算
+                            </summary>
+                            
+                            <div class="backtest-settings-grid">
+                                <div>
+                                    <label for="buy_threshold">
+                                        買進門檻（分數）
+                                    </label>
 
-                    <article class="indicator-card">
-                        <p>單次期望報酬</p>
-                        <strong class="{% if backtest_result.avg_profit > 0 %}positive{% else %}negative{% endif %}">
-                            {% if backtest_result.avg_profit > 0 %}+{% endif %}{{ backtest_result.avg_profit }}%
-                        </strong>
-                        <span>每次訊號循環之平均損益</span>
-                    </article>
-                </div>
-                
-                <div style="margin-top: 20px; font-size: 0.9em; color: var(--ink-muted);">
-                    <h4>最近三次紀錄（僅包含有出場）：</h4>
-                    <ul style="list-style-type: none; padding-left: 0;">
-                        {% for trade in backtest_result.recent_trades %}
-                            <li>
-                                <strong>{{ trade.buy_date }}</strong> 進場 ({{ trade.buy_price }}) → 
-                                <strong>{{ trade.sell_date }}</strong> 退場 ({{ trade.sell_price }}) 
-                                <br>
-                                <span style="font-size: 0.85em; color: var(--ink-faint);">
-                                    出場原因：{{ trade.reason }}
-                                </span>
-                                ｜ 淨損益：
-                                <span class="{% if trade.profit_pct > 0 %}positive{% else %}negative{% endif %}">
-                                    {{ trade.profit_pct }}%
-                                </span>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                                    <input
+                                        type="number"
+                                        id="buy_threshold"
+                                        name="buy_threshold"
+                                        value="{{ backtest_result.buy_threshold }}"
+                                        min="40"
+                                        max="90"
+                                    >
+                                </div>
 
-                {% else %}
-                <div class="empty-hint" style="text-align: left; margin-top: 15px;">
-                    歷史資料庫中，尚無出現完成此分數循環的紀錄。
-                </div>
-                {% endif %}
-            </section>
+                                <div>
+                                    <label for="stop_loss">
+                                        絕對停損（%）
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        id="stop_loss"
+                                        name="stop_loss"
+                                        value="{{ backtest_result.stop_loss_pct }}"
+                                        max="-1"
+                                        step="0.5"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label for="trailing_stop">
+                                        移動停利（%）
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        id="trailing_stop"
+                                        name="trailing_stop"
+                                        value="{{ backtest_result.trailing_stop_pct }}"
+                                        max="-1"
+                                        step="0.5"
+                                    >
+                                </div>
+                                
+                                <div>
+                                    <button type="submit">
+                                        套用參數
+                                    </button>
+                                </div>
+                            </div>
+                        </details>
+                    </form>
+
+                    {% if backtest_result.total_trades > 0 %}
+                        <div class="indicator-grid">
+                            <article class="indicator-card">
+                                <p>歷史觸發次數</p>
+
+                                <strong>
+                                    {{ backtest_result.total_trades }} 次
+                                </strong>
+
+                                <span>滿足系統進出邏輯</span>
+                            </article>
+
+                            <article class="indicator-card">
+                                <p>回測勝率</p>
+
+                                <strong
+                                    class="{% if backtest_result.win_rate >= 50 %}positive{% else %}negative{% endif %}"
+                                >
+                                    {{ backtest_result.win_rate }}%
+                                </strong>
+
+                                <span>正報酬結束之比例</span>
+                            </article>
+
+                            <article class="indicator-card">
+                                <p>單次期望報酬</p>
+
+                                <strong
+                                    class="{% if backtest_result.avg_profit > 0 %}positive{% else %}negative{% endif %}"
+                                >
+                                    {% if backtest_result.avg_profit > 0 %}
+                                        +
+                                    {% endif %}
+
+                                    {{ backtest_result.avg_profit }}%
+                                </strong>
+
+                                <span>每次訊號循環之平均損益</span>
+                            </article>
+                        </div>
+                        
+                        <div class="trade-records">
+                            <h4>最近三次紀錄（僅包含有出場）：</h4>
+
+                            <ul>
+                                {% for trade in backtest_result.recent_trades %}
+                                    <li>
+                                        <strong>{{ trade.buy_date }}</strong>
+                                        進場（{{ trade.buy_price }}）
+                                        →
+                                        <strong>{{ trade.sell_date }}</strong>
+                                        退場（{{ trade.sell_price }}）
+
+                                        <br>
+
+                                        <span class="trade-reason">
+                                            出場原因：{{ trade.reason }}
+                                        </span>
+
+                                        ｜ 淨損益：
+
+                                        <span
+                                            class="{% if trade.profit_pct > 0 %}positive{% else %}negative{% endif %}"
+                                        >
+                                            {{ trade.profit_pct }}%
+                                        </span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="empty-hint">
+                            歷史資料庫中，尚無出現完成此分數循環的紀錄。
+                        </div>
+                    {% endif %}
+                </section>
             {% endif %}
 
             <section class="disclaimer">
@@ -445,209 +612,209 @@
     <footer>
         <p>台股每日數據分析平台・Internet Final Project</p>
     </footer>
+
     {% if chart_data %}
-    <script>
-        const chartData = {{ chart_data | tojson }};
+        <script>
+            const chartData = {{ chart_data | tojson }};
 
-        const priceCanvas = document.getElementById("priceChart");
-        const volumeCanvas = document.getElementById("volumeChart");
+            const priceCanvas = document.getElementById("priceChart");
+            const volumeCanvas = document.getElementById("volumeChart");
 
-        new Chart(priceCanvas, {
-            type: "line",
+            new Chart(priceCanvas, {
+                type: "line",
 
-            data: {
-                labels: chartData.labels,
+                data: {
+                    labels: chartData.labels,
 
-                datasets: [
-                    {
-                        label: "收盤價",
-                        data: chartData.close_prices,
-                        borderColor: "#315efb",
-                        backgroundColor: "rgba(49, 94, 251, 0.10)",
-                        borderWidth: 3,
-                        pointRadius: 0,
-                        pointHoverRadius: 5,
-                        tension: 0.2,
-                        fill: false
-                    },
-                    {
-                        label: "MA5",
-                        data: chartData.ma5,
-                        borderColor: "#f79009",
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.2,
-                        fill: false
-                    },
-                    {
-                        label: "MA20",
-                        data: chartData.ma20,
-                        borderColor: "#12b76a",
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.2,
-                        fill: false
-                    }
-                ]
-            },
-
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-
-                interaction: {
-                    mode: "index",
-                    intersect: false
+                    datasets: [
+                        {
+                            label: "收盤價",
+                            data: chartData.close_prices,
+                            borderColor: "#315efb",
+                            backgroundColor: "rgba(49, 94, 251, 0.10)",
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            tension: 0.2,
+                            fill: false
+                        },
+                        {
+                            label: "MA5",
+                            data: chartData.ma5,
+                            borderColor: "#f79009",
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            tension: 0.2,
+                            fill: false
+                        },
+                        {
+                            label: "MA20",
+                            data: chartData.ma20,
+                            borderColor: "#12b76a",
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            tension: 0.2,
+                            fill: false
+                        }
+                    ]
                 },
 
-                plugins: {
-                    legend: {
-                        position: "top",
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
 
-                        labels: {
-                            usePointStyle: true,
-                            boxWidth: 8,
-                            padding: 20
-                        }
+                    interaction: {
+                        mode: "index",
+                        intersect: false
                     },
 
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.dataset.label || "";
-                                const value = context.parsed.y;
+                    plugins: {
+                        legend: {
+                            position: "top",
 
-                                if (value === null) {
-                                    return `${label}：--`;
-                                }
-
-                                return `${label}：${value.toLocaleString()}`;
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                padding: 20
                             }
-                        }
-                    }
-                },
-
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
                         },
 
-                        ticks: {
-                            maxTicksLimit: 12
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || "";
+                                    const value = context.parsed.y;
+
+                                    if (value === null) {
+                                        return `${label}：--`;
+                                    }
+
+                                    return `${label}：${value.toLocaleString()}`;
+                                }
+                            }
                         }
                     },
 
-                    y: {
-                        beginAtZero: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
 
-                        ticks: {
-                            callback: function(value) {
-                                return value.toLocaleString();
+                            ticks: {
+                                maxTicksLimit: 12
+                            }
+                        },
+
+                        y: {
+                            beginAtZero: false,
+
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
 
-        new Chart(volumeCanvas, {
-            type: "bar",
+            new Chart(volumeCanvas, {
+                type: "bar",
 
-            data: {
-                labels: chartData.labels,
+                data: {
+                    labels: chartData.labels,
 
-                datasets: [
-                    {
-                        label: "成交量",
-                        data: chartData.volumes,
-                        backgroundColor: "rgba(49, 94, 251, 0.55)",
-                        borderRadius: 3,
-                        borderSkipped: false
-                    }
-                ]
-            },
-
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-
-                interaction: {
-                    mode: "index",
-                    intersect: false
+                    datasets: [
+                        {
+                            label: "成交量",
+                            data: chartData.volumes,
+                            backgroundColor: "rgba(49, 94, 251, 0.55)",
+                            borderRadius: 3,
+                            borderSkipped: false
+                        }
+                    ]
                 },
 
-                plugins: {
-                    legend: {
-                        display: false
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    interaction: {
+                        mode: "index",
+                        intersect: false
                     },
 
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.parsed.y;
-
-                                if (value === null) {
-                                    return "成交量：--";
-                                }
-
-                                return (
-                                    "成交量：" +
-                                    value.toLocaleString() +
-                                    " 股"
-                                );
-                            }
-                        }
-                    }
-                },
-
-                scales: {
-                    x: {
-                        grid: {
+                    plugins: {
+                        legend: {
                             display: false
                         },
 
-                        ticks: {
-                            maxTicksLimit: 12
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+
+                                    if (value === null) {
+                                        return "成交量：--";
+                                    }
+
+                                    return (
+                                        "成交量：" +
+                                        value.toLocaleString() +
+                                        " 股"
+                                    );
+                                }
+                            }
                         }
                     },
 
-                    y: {
-                        beginAtZero: true,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
 
-                        ticks: {
-                            callback: function(value) {
-                                if (value >= 100000000) {
-                                    return (
-                                        value / 100000000
-                                    ).toFixed(1) + " 億";
+                            ticks: {
+                                maxTicksLimit: 12
+                            }
+                        },
+
+                        y: {
+                            beginAtZero: true,
+
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 100000000) {
+                                        return (
+                                            value / 100000000
+                                        ).toFixed(1) + " 億";
+                                    }
+
+                                    if (value >= 10000) {
+                                        return (
+                                            value / 10000
+                                        ).toFixed(0) + " 萬";
+                                    }
+
+                                    return value;
                                 }
-
-                                if (value >= 10000) {
-                                    return (
-                                        value / 10000
-                                    ).toFixed(0) + " 萬";
-                                }
-
-                                return value;
                             }
                         }
                     }
                 }
-            }
-        });
-    </script>
+            });
+        </script>
     {% endif %}
+
     <script>
         function quickSearch(stockCode) {
-            // 1. 找到輸入框，並把代碼填進去
-            const inputField = document.getElementById('stock_code');
+            const inputField = document.getElementById("stock_code");
             inputField.value = stockCode;
-            
-            // 2. 找到搜尋表單，並觸發送出 (submit)
-            const searchForm = document.querySelector('.search-form');
+
+            const searchForm = document.querySelector(".search-form");
             searchForm.submit();
         }
     </script>

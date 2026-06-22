@@ -18,7 +18,7 @@ def get_connection() -> sqlite3.Connection:
 
 
 def create_tables() -> None:
-    """建立每日股價資料表。"""
+    """建立資料表。"""
     with get_connection() as connection:
         connection.execute(
             """
@@ -39,6 +39,16 @@ def create_tables() -> None:
                 transactions INTEGER,
 
                 PRIMARY KEY (stock_code, trade_date)
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS watchlist (
+                stock_code TEXT PRIMARY KEY,
+                stock_name TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
             """
         )

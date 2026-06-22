@@ -1,9 +1,9 @@
-import sqlite3
 import os
+import sqlite3
 from threading import Lock
 from typing import Any
 
-from flask import Flask, render_template, request
+from flask import Flask, abort, redirect, render_template, request, url_for
 
 from analyzer import analyze_stock, get_chart_data, run_backtest
 from database import create_tables, get_connection
@@ -23,7 +23,7 @@ import_lock = Lock()
 create_tables()
 
 
-def get_available_stocks() -> list[dict[str, str]]:
+def get_available_stocks() -> list[dict[str, Any]]:
     """取得資料庫內已有的股票。"""
 
     query = """
@@ -42,24 +42,93 @@ def get_available_stocks() -> list[dict[str, str]]:
 
     for row in rows:
         stock_code = row["stock_code"]
-        
-        # 檢查該股票的實體報告檔案是否存在
+
         report_path = os.path.join(
-            app.root_path, 
-            'templates', 
-            'reports', 
-            f'report_{stock_code}.html'
+            app.root_path,
+            "templates",
+            "reports",
+            f"report_{stock_code}.html",
         )
+
         has_report = os.path.exists(report_path)
 
-        # 將結果包裝進字典
-        available_stocks.append({
-            "stock_code": stock_code,
-            "stock_name": row["stock_name"],
-            "has_report": has_report  # 新增這個布林值欄位
-        })
+        available_stocks.append(
+            {
+                "stock_code": stock_code,
+                "stock_name": row["stock_name"],
+                "has_report": has_report,
+            }
+        )
 
     return available_stocks
+
+
+def get_watchlist() -> list[dict[str, str]]:
+    """取得觀察清單。"""
+
+    query = """
+        SELECT
+            stock_code,
+            stock_name,
+            created_at
+        FROM watchlist
+        ORDER BY created_at DESC
+    """
+
+    with get_connection() as connection:
+        rows = connection.execute(query).fetchall()
+
+    return [
+        {
+            "stock_code": row["stock_code"],
+            "stock_name": row["stock_name"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def add_to_watchlist(
+    stock_code: str,
+    stock_name: str,
+) -> None:
+    """加入觀察清單。"""
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO watchlist (
+                stock_code,
+                stock_name
+            )
+            VALUES (?, ?)
+
+            ON CONFLICT(stock_code)
+            DO UPDATE SET
+                stock_name = excluded.stock_name
+            """,
+            (
+                stock_code,
+                stock_name,
+            ),
+        )
+
+        connection.commit()
+
+
+def remove_from_watchlist(stock_code: str) -> None:
+    """從觀察清單移除股票。"""
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            DELETE FROM watchlist
+            WHERE stock_code = ?
+            """,
+            (stock_code,),
+        )
+
+        connection.commit()
 
 
 def find_stock_information(
@@ -72,8 +141,7 @@ def find_stock_information(
         (
             stock
             for stock in stocks
-            if str(stock.get("Code", "")).strip()
-            == stock_code
+            if str(stock.get("Code", "")).strip() == stock_code
         ),
         None,
     )
@@ -89,9 +157,7 @@ def auto_import_stock(
     分析結果、成功訊息、錯誤訊息
     """
 
-    # 鎖定匯入程序，避免同時重複下載
     with import_lock:
-        # 取得鎖之後再確認一次，避免其他請求已經匯入
         existing_result = analyze_stock(stock_code)
 
         if existing_result.get("success"):
@@ -99,6 +165,7 @@ def auto_import_stock(
 
         try:
             stocks = fetch_all_stocks()
+
         except RuntimeError as error:
             print(f"取得股票清單失敗：{error}")
 
@@ -207,19 +274,80 @@ def format_number(value: Any) -> str:
     except (TypeError, ValueError):
         return str(value)
 
-# --- 1. 新增：專門用來顯示深度報告的路由 ---
+
 @app.route("/report/<stock_code>")
 def view_report(stock_code):
-    """讀取並顯示個別股票的深度分析報告"""
-    # 組合出預期的檔案路徑，例如 templates/reports/report_3413.html
+    """讀取並顯示個別股票的深度分析報告。"""
+
     report_filename = f"reports/report_{stock_code}.html"
-    report_path = os.path.join(app.root_path, 'templates', report_filename)
-    
-    # 如果檔案存在，就渲染該報告；如果不存在，回傳 404 錯誤
+    report_path = os.path.join(
+        app.root_path,
+        "templates",
+        report_filename,
+    )
+
     if os.path.exists(report_path):
         return render_template(report_filename)
-    else:
-        abort(404, description="目前尚未建立該檔股票的深度分析報告。")
+
+    abort(
+        404,
+        description="目前尚未建立該檔股票的深度分析報告。",
+    )
+
+
+@app.route("/watchlist/add", methods=["POST"])
+def add_watchlist():
+    """加入股票到觀察清單。"""
+
+    stock_code = (
+        request.form
+        .get("watch_stock_code", "")
+        .strip()
+        .upper()
+    )
+
+    if not stock_code:
+        return redirect(url_for("index"))
+
+    try:
+        analysis = analyze_stock(stock_code)
+
+        if analysis.get("success"):
+            add_to_watchlist(
+                stock_code=analysis["stock_code"],
+                stock_name=analysis["stock_name"],
+            )
+
+        else:
+            result, _, import_error = auto_import_stock(stock_code)
+
+            if result is not None and result.get("success"):
+                add_to_watchlist(
+                    stock_code=result["stock_code"],
+                    stock_name=result["stock_name"],
+                )
+
+            elif import_error:
+                print(import_error)
+
+    except Exception as exception:
+        print(f"加入觀察清單失敗：{exception}")
+
+    return redirect(url_for("index"))
+
+
+@app.route("/watchlist/remove/<stock_code>", methods=["POST"])
+def remove_watchlist(stock_code):
+    """從觀察清單移除股票。"""
+
+    try:
+        remove_from_watchlist(stock_code)
+
+    except sqlite3.Error as exception:
+        print(f"移除觀察清單失敗：{exception}")
+
+    return redirect(url_for("index"))
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -230,7 +358,7 @@ def index():
     error = None
     notice = None
     stock_code = ""
-    has_report = False # 預設為沒有報告
+    has_report = False
     backtest_result = None
 
     if request.method == "POST":
@@ -241,10 +369,24 @@ def index():
             .upper()
         )
 
-        user_buy_threshold = request.form.get("buy_threshold", type=int, default=75)
-        user_stop_loss = request.form.get("stop_loss", type=float, default=-5.0)
-        user_trailing_stop = request.form.get("trailing_stop", type=float, default=-10.0)
-        
+        user_buy_threshold = request.form.get(
+            "buy_threshold",
+            type=int,
+            default=75,
+        )
+
+        user_stop_loss = request.form.get(
+            "stop_loss",
+            type=float,
+            default=-5.0,
+        )
+
+        user_trailing_stop = request.form.get(
+            "trailing_stop",
+            type=float,
+            default=-10.0,
+        )
+
         if not stock_code:
             error = "請輸入股票代碼。"
 
@@ -256,20 +398,19 @@ def index():
 
         else:
             try:
-                # 先查詢資料庫
                 analysis = analyze_stock(stock_code)
 
                 if analysis.get("success"):
                     result = analysis
+
                     backtest_result = run_backtest(
-                        stock_code, 
+                        stock_code,
                         buy_threshold=user_buy_threshold,
                         stop_loss_pct=user_stop_loss,
-                        trailing_stop_pct=user_trailing_stop
+                        trailing_stop_pct=user_trailing_stop,
                     )
 
                 else:
-                    # 找不到時，自動下載歷史資料
                     (
                         result,
                         notice,
@@ -278,8 +419,16 @@ def index():
 
                     if import_error:
                         error = import_error
-                        
-                if result is not None:
+
+                    if result is not None and result.get("success"):
+                        backtest_result = run_backtest(
+                            stock_code,
+                            buy_threshold=user_buy_threshold,
+                            stop_loss_pct=user_stop_loss,
+                            trailing_stop_pct=user_trailing_stop,
+                        )
+
+                if result is not None and result.get("success"):
                     chart_data = get_chart_data(
                         stock_code,
                         days=60,
@@ -292,22 +441,30 @@ def index():
             except Exception as exception:
                 print(f"分析錯誤：{exception}")
                 error = "股票分析時發生錯誤。"
-    # 新增：檢查該股票是否有實體的 HTML 報告檔案
+
     if stock_code:
         expected_report_path = os.path.join(
-            app.root_path, 
-            'templates', 
-            'reports', 
-            f'report_{stock_code}.html'
+            app.root_path,
+            "templates",
+            "reports",
+            f"report_{stock_code}.html",
         )
+
         has_report = os.path.exists(expected_report_path)
+
     try:
-        # 放在分析之後，剛匯入的股票才會立即出現在清單
         available_stocks = get_available_stocks()
 
     except sqlite3.Error as exception:
         print(f"取得股票清單失敗：{exception}")
         available_stocks = []
+
+    try:
+        watchlist = get_watchlist()
+
+    except sqlite3.Error as exception:
+        print(f"取得觀察清單失敗：{exception}")
+        watchlist = []
 
     return render_template(
         "index.html",
@@ -318,7 +475,8 @@ def index():
         notice=notice,
         stock_code=stock_code,
         available_stocks=available_stocks,
-        has_report=has_report
+        watchlist=watchlist,
+        has_report=has_report,
     )
 
 
