@@ -337,16 +337,50 @@
             </section>
 
             {% if backtest_result and backtest_result.success %}
-            <section class="section-block">
+            <section class="section-block" id="backtest-section">
                 <div class="section-title">
                     <div>
                         <p class="section-number">05</p>
                         <h3>評分歷史可信度</h3>
                     </div>
                     <p class="chart-description">
-                        進出場機制：技術面評分 ≥ {{ backtest_result.buy_threshold }} 進場；跌破月線、高點回落 15% 或虧損 5% 退場（已計入 0.4% 摩擦成本）
+                        進出場機制：技術面評分 ≥ {{ backtest_result.buy_threshold }} 進場；跌破月線、高點回落 {{ backtest_result.trailing_stop_pct | abs }} % 或虧損 {{ backtest_result.stop_loss_pct | abs }} % 退場（已計入 0.4% 摩擦成本）
                     </p>
                 </div>
+
+                <form method="POST" action="#backtest-section" style="margin-bottom: 25px;">
+                    <input type="hidden" name="stock_code" value="{{ result.stock_code }}">
+                    
+                    <details class="advanced-settings">
+                        <summary style="cursor: pointer; font-size: 0.9em; color: var(--ink-muted); list-style: none;">
+                            <span style="color: #315efb; margin-right: 5px;">▶</span> ⚙️ 自訂回測參數並重新計算
+                        </summary>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; margin-top: 12px; padding: 15px; background: #f9fafb; border-radius: 8px; border: 1px solid rgba(26, 20, 16, 0.08); align-items: end;">
+                            
+                            <div>
+                                <label for="buy_threshold" style="font-size: 12px; color: var(--ink-muted); display: block; margin-bottom: 6px;">買進門檻 (分數)</label>
+                                <input type="number" id="buy_threshold" name="buy_threshold" value="{{ backtest_result.buy_threshold }}" min="40" max="90" style="width: 100%; padding: 8px; border: 1px solid rgba(26,20,16,0.15); border-radius: 4px;">
+                            </div>
+
+                            <div>
+                                <label for="stop_loss" style="font-size: 12px; color: var(--ink-muted); display: block; margin-bottom: 6px;">絕對停損 (%)</label>
+                                <input type="number" id="stop_loss" name="stop_loss" value="{{ backtest_result.stop_loss_pct }}" max="-1" step="0.5" style="width: 100%; padding: 8px; border: 1px solid rgba(26,20,16,0.15); border-radius: 4px;">
+                            </div>
+
+                            <div>
+                                <label for="trailing_stop" style="font-size: 12px; color: var(--ink-muted); display: block; margin-bottom: 6px;">移動停利 (%)</label>
+                                <input type="number" id="trailing_stop" name="trailing_stop" value="{{ backtest_result.trailing_stop_pct }}" max="-1" step="0.5" style="width: 100%; padding: 8px; border: 1px solid rgba(26,20,16,0.15); border-radius: 4px;">
+                            </div>
+                            
+                            <div>
+                                <button type="submit" style="padding: 8px 16px; background-color: #315efb; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                                    套用參數
+                                </button>
+                            </div>
+                        </div>
+                    </details>
+                </form>
 
                 {% if backtest_result.total_trades > 0 %}
                 <div class="indicator-grid">

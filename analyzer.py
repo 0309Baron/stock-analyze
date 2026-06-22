@@ -183,27 +183,27 @@ def calculate_score(latest: pd.Series) -> tuple[int, str, list[str]]:
 
     # 5 日動能
     if pd.notna(momentum_5d):
-        if momentum_5d >= 10:
+        if momentum_5d >= 15:
             score += 10
-            reasons.append("近 5 個交易日漲幅超過 10%")
+            reasons.append("近 5 個交易日漲幅超過 15%")
         elif momentum_5d > 0:
             score += 5
             reasons.append("近 5 個交易日股價上漲")
-        elif momentum_5d <= -10:
+        elif momentum_5d <= -15:
             score -= 10
-            reasons.append("近 5 個交易日跌幅超過 10%")
+            reasons.append("近 5 個交易日跌幅超過 15%")
         else:
             score -= 5
             reasons.append("近 5 個交易日股價下跌")
 
     # 當日漲跌
     if pd.notna(daily_return):
-        if daily_return >= 3:
+        if daily_return >= 5:
             score += 5
-            reasons.append("當日漲幅超過 3%")
-        elif daily_return <= -3:
+            reasons.append("當日漲幅超過 5%")
+        elif daily_return <= -5:
             score -= 5
-            reasons.append("當日跌幅超過 3%")
+            reasons.append("當日跌幅超過 5%")
 
     # 量價關係
     if pd.notna(volume_ratio):
@@ -448,8 +448,8 @@ def parse_arguments() -> argparse.Namespace:
 def run_backtest(
     stock_code: str, 
     buy_threshold: int = 75, 
-    stop_loss_pct: float = -5.0,      # 初始嚴格停損：-5%
-    trailing_stop_pct: float = -15.0   # 移動停利：從高點回落 15%
+    stop_loss_pct: float = -5.0,     
+    trailing_stop_pct: float = -10.0  
 ) -> dict[str, Any]:
     """執行歷史回測，採用獨立的技術與風控出場邏輯。"""
     
@@ -545,6 +545,8 @@ def run_backtest(
         "win_rate": safe_round(win_rate),
         "avg_profit": safe_round(avg_profit),
         "buy_threshold": buy_threshold,
+        "stop_loss_pct": stop_loss_pct,         
+        "trailing_stop_pct": trailing_stop_pct,
         "recent_trades": trades[-3:]
     }
 

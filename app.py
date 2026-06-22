@@ -241,6 +241,10 @@ def index():
             .upper()
         )
 
+        user_buy_threshold = request.form.get("buy_threshold", type=int, default=75)
+        user_stop_loss = request.form.get("stop_loss", type=float, default=-5.0)
+        user_trailing_stop = request.form.get("trailing_stop", type=float, default=-10.0)
+        
         if not stock_code:
             error = "請輸入股票代碼。"
 
@@ -259,9 +263,9 @@ def index():
                     result = analysis
                     backtest_result = run_backtest(
                         stock_code, 
-                        buy_threshold=75,  # 高於 75 分進場
-                        stop_loss_pct=-5.0, 
-                        trailing_stop_pct=-15.0
+                        buy_threshold=user_buy_threshold,
+                        stop_loss_pct=user_stop_loss,
+                        trailing_stop_pct=user_trailing_stop
                     )
 
                 else:
