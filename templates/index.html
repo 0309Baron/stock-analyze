@@ -39,6 +39,12 @@
         <!-- 股票搜尋區域 -->
         <section class="search-section">
             <form method="POST" class="search-form">
+                <input
+                    type="hidden"
+                    name="action"
+                    value="analyze"
+                >
+
                 <div class="input-group">
                     <label for="stock_code">
                         股票代碼
@@ -118,27 +124,28 @@
                 >
 
                 <button type="submit">
-                    加入觀察清單
+                    加入
                 </button>
             </form>
 
             {% if watchlist and watchlist|length > 0 %}
-                <div class="watchlist-grid">
+                <div class="watchlist-compact">
                     {% for stock in watchlist %}
-                        <article class="watchlist-card">
-                            <div>
-                                <p class="watchlist-code">
+                        <div class="watchlist-row">
+                            <div class="watchlist-info">
+                                <span class="watchlist-code">
                                     {{ stock.stock_code }}
-                                </p>
+                                </span>
 
-                                <h4>
+                                <strong class="watchlist-name">
                                     {{ stock.stock_name }}
-                                </h4>
+                                </strong>
                             </div>
 
                             <div class="watchlist-actions">
                                 <button
                                     type="button"
+                                    class="small-button"
                                     onclick="quickSearch('{{ stock.stock_code }}')"
                                 >
                                     Analyze
@@ -150,18 +157,173 @@
                                 >
                                     <button
                                         type="submit"
-                                        class="remove-button"
+                                        class="small-button remove-button"
                                     >
                                         Remove
                                     </button>
                                 </form>
                             </div>
-                        </article>
+                        </div>
                     {% endfor %}
                 </div>
             {% else %}
                 <p class="empty-hint">
                     目前觀察清單沒有股票。
+                </p>
+            {% endif %}
+        </section>
+
+        <!-- 股票比較 -->
+        <section class="compare-section">
+            <div class="section-title">
+                <div>
+                    <p class="section-number">COMPARE</p>
+                    <h3>股票比較</h3>
+                </div>
+
+                <p class="chart-description">
+                    可輸入 2 至 5 檔股票代碼，比較趨勢分數、報酬率、均線、成交量與波動度。
+                </p>
+            </div>
+
+            <form
+                method="POST"
+                class="compare-form"
+            >
+                <input
+                    type="hidden"
+                    name="action"
+                    value="compare"
+                >
+
+                <input
+                    type="text"
+                    name="compare_codes"
+                    placeholder="例如：2330 2317 2454"
+                    autocomplete="off"
+                    required
+                >
+
+                <button type="submit">
+                    比較股票
+                </button>
+            </form>
+
+            {% if compare_errors and compare_errors|length > 0 %}
+                <div class="compare-errors">
+                    {% for compare_error in compare_errors %}
+                        <p>{{ compare_error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if compare_results and compare_results|length > 0 %}
+                <div class="compare-table-wrapper">
+                    <table class="compare-table">
+                        <tr>
+                            <th>排名</th>
+                            <th>股票</th>
+                            <th>趨勢</th>
+                            <th>分數</th>
+                            <th>收盤價</th>
+                            <th>每日報酬率</th>
+                            <th>近五日漲跌</th>
+                            <th>MA5</th>
+                            <th>MA20</th>
+                            <th>成交量倍率</th>
+                            <th>20 日波動度</th>
+                            <th>快速分析</th>
+                        </tr>
+
+                        {% for stock in compare_results %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+
+                                <td>
+                                    <strong>{{ stock.stock_name }}</strong>
+                                    <br>
+                                    <span class="table-muted">
+                                        {{ stock.stock_code }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="mini-trend-badge">
+                                        {{ stock.trend }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <strong>{{ stock.score }}</strong>
+                                    <span class="table-muted">/ 100</span>
+                                </td>
+
+                                <td>{{ stock.close_price | number }}</td>
+
+                                <td
+                                    class="{% if stock.daily_return_pct is not none and stock.daily_return_pct > 0 %}positive{% elif stock.daily_return_pct is not none and stock.daily_return_pct < 0 %}negative{% endif %}"
+                                >
+                                    {% if stock.daily_return_pct is not none %}
+                                        {% if stock.daily_return_pct > 0 %}
+                                            +
+                                        {% endif %}
+
+                                        {{ stock.daily_return_pct }}%
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+
+                                <td
+                                    class="{% if stock.momentum_5d_pct is not none and stock.momentum_5d_pct > 0 %}positive{% elif stock.momentum_5d_pct is not none and stock.momentum_5d_pct < 0 %}negative{% endif %}"
+                                >
+                                    {% if stock.momentum_5d_pct is not none %}
+                                        {% if stock.momentum_5d_pct > 0 %}
+                                            +
+                                        {% endif %}
+
+                                        {{ stock.momentum_5d_pct }}%
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+
+                                <td>{{ stock.ma5 | number }}</td>
+
+                                <td>{{ stock.ma20 | number }}</td>
+
+                                <td>
+                                    {% if stock.volume_ratio is not none %}
+                                        {{ stock.volume_ratio }} 倍
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if stock.volatility_20d_pct is not none %}
+                                        {{ stock.volatility_20d_pct }}%
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <button
+                                        type="button"
+                                        onclick="quickSearch('{{ stock.stock_code }}')"
+                                        class="small-button"
+                                    >
+                                        Analyze
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+
+                <p class="compare-note">
+                    排名依照技術面分數由高到低排列，僅供課程資料分析展示，不代表投資建議。
                 </p>
             {% endif %}
         </section>
@@ -457,6 +619,12 @@
                         action="#backtest-section"
                         class="backtest-form"
                     >
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="analyze"
+                        >
+
                         <input
                             type="hidden"
                             name="stock_code"

@@ -256,6 +256,70 @@ def auto_import_stock(
         return result, success_message, None
 
 
+def analyze_or_import_stock(
+    stock_code: str,
+) -> tuple[dict | None, str | None, str | None]:
+    """
+    分析股票。
+    若資料庫沒有資料，則自動下載後再分析。
+
+    回傳：
+    分析結果、成功訊息、錯誤訊息
+    """
+
+    result = analyze_stock(stock_code)
+
+    if result.get("success"):
+        return result, None, None
+
+    result, notice, import_error = auto_import_stock(stock_code)
+
+    if import_error:
+        return None, None, import_error
+
+    if result is None or not result.get("success"):
+        return None, None, f"股票 {stock_code} 分析失敗。"
+
+    return result, notice, None
+
+
+def compare_stocks(
+    stock_codes: list[str],
+) -> tuple[list[dict], list[str], list[str]]:
+    """
+    比較多檔股票。
+
+    回傳：
+    比較結果、錯誤訊息、提示訊息
+    """
+
+    compare_results = []
+    compare_errors = []
+    compare_notices = []
+
+    for stock_code in stock_codes:
+        result, notice, error = analyze_or_import_stock(stock_code)
+
+        if error:
+            compare_errors.append(
+                f"{stock_code}：{error}"
+            )
+
+        elif result is not None:
+            compare_results.append(result)
+
+            if notice:
+                compare_notices.append(notice)
+
+    compare_results = sorted(
+        compare_results,
+        key=lambda item: item.get("score", 0),
+        reverse=True,
+    )
+
+    return compare_results, compare_errors, compare_notices
+
+
 @app.template_filter("number")
 def format_number(value: Any) -> str:
     """將數字加上千分位。"""
@@ -280,6 +344,7 @@ def view_report(stock_code):
     """讀取並顯示個別股票的深度分析報告。"""
 
     report_filename = f"reports/report_{stock_code}.html"
+
     report_path = os.path.join(
         app.root_path,
         "templates",
@@ -310,25 +375,16 @@ def add_watchlist():
         return redirect(url_for("index"))
 
     try:
-        analysis = analyze_stock(stock_code)
+        result, _, error = analyze_or_import_stock(stock_code)
 
-        if analysis.get("success"):
+        if error:
+            print(error)
+
+        elif result is not None and result.get("success"):
             add_to_watchlist(
-                stock_code=analysis["stock_code"],
-                stock_name=analysis["stock_name"],
+                stock_code=result["stock_code"],
+                stock_name=result["stock_name"],
             )
-
-        else:
-            result, _, import_error = auto_import_stock(stock_code)
-
-            if result is not None and result.get("success"):
-                add_to_watchlist(
-                    stock_code=result["stock_code"],
-                    stock_name=result["stock_name"],
-                )
-
-            elif import_error:
-                print(import_error)
 
     except Exception as exception:
         print(f"加入觀察清單失敗：{exception}")
@@ -351,7 +407,7 @@ def remove_watchlist(stock_code):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    """首頁與股票查詢。"""
+    """首頁、股票查詢與股票比較。"""
 
     result = None
     chart_data = None
@@ -361,61 +417,120 @@ def index():
     has_report = False
     backtest_result = None
 
+    compare_results = []
+    compare_errors = []
+    compare_notices = []
+
     if request.method == "POST":
-        stock_code = (
-            request.form
-            .get("stock_code", "")
-            .strip()
-            .upper()
-        )
+        action = request.form.get("action", "analyze")
 
-        user_buy_threshold = request.form.get(
-            "buy_threshold",
-            type=int,
-            default=75,
-        )
+        if action == "compare":
+            raw_codes = (
+                request.form
+                .get("compare_codes", "")
+                .strip()
+                .upper()
+            )
 
-        user_stop_loss = request.form.get(
-            "stop_loss",
-            type=float,
-            default=-5.0,
-        )
+            stock_codes = (
+                raw_codes
+                .replace(",", " ")
+                .replace("，", " ")
+                .split()
+            )
 
-        user_trailing_stop = request.form.get(
-            "trailing_stop",
-            type=float,
-            default=-10.0,
-        )
+            # 去除重複，但保留原本順序
+            stock_codes = list(dict.fromkeys(stock_codes))
 
-        if not stock_code:
-            error = "請輸入股票代碼。"
+            if len(stock_codes) < 2:
+                compare_errors.append(
+                    "請至少輸入兩檔股票代碼進行比較。"
+                )
 
-        elif not stock_code.isalnum():
-            error = "股票代碼只能包含英文或數字。"
+            elif len(stock_codes) > 5:
+                compare_errors.append(
+                    "一次最多比較 5 檔股票。"
+                )
 
-        elif len(stock_code) < 4 or len(stock_code) > 6:
-            error = "股票代碼長度應為 4 至 6 個字元。"
+            else:
+                valid_codes = []
+
+                for code in stock_codes:
+                    if not code.isalnum():
+                        compare_errors.append(
+                            f"{code}：股票代碼只能包含英文或數字。"
+                        )
+
+                    elif len(code) < 4 or len(code) > 6:
+                        compare_errors.append(
+                            f"{code}：股票代碼長度應為 4 至 6 個字元。"
+                        )
+
+                    else:
+                        valid_codes.append(code)
+
+                if valid_codes:
+                    try:
+                        (
+                            compare_results,
+                            new_errors,
+                            compare_notices,
+                        ) = compare_stocks(valid_codes)
+
+                        compare_errors.extend(new_errors)
+
+                    except sqlite3.Error as exception:
+                        print(f"資料庫錯誤：{exception}")
+                        compare_errors.append(
+                            "比較股票時讀取資料庫發生錯誤。"
+                        )
+
+                    except Exception as exception:
+                        print(f"比較錯誤：{exception}")
+                        compare_errors.append(
+                            "股票比較時發生錯誤。"
+                        )
 
         else:
-            try:
-                analysis = analyze_stock(stock_code)
+            stock_code = (
+                request.form
+                .get("stock_code", "")
+                .strip()
+                .upper()
+            )
 
-                if analysis.get("success"):
-                    result = analysis
+            user_buy_threshold = request.form.get(
+                "buy_threshold",
+                type=int,
+                default=75,
+            )
 
-                    backtest_result = run_backtest(
-                        stock_code,
-                        buy_threshold=user_buy_threshold,
-                        stop_loss_pct=user_stop_loss,
-                        trailing_stop_pct=user_trailing_stop,
+            user_stop_loss = request.form.get(
+                "stop_loss",
+                type=float,
+                default=-5.0,
+            )
+
+            user_trailing_stop = request.form.get(
+                "trailing_stop",
+                type=float,
+                default=-10.0,
+            )
+
+            if not stock_code:
+                error = "請輸入股票代碼。"
+
+            elif not stock_code.isalnum():
+                error = "股票代碼只能包含英文或數字。"
+
+            elif len(stock_code) < 4 or len(stock_code) > 6:
+                error = "股票代碼長度應為 4 至 6 個字元。"
+
+            else:
+                try:
+                    result, notice, import_error = analyze_or_import_stock(
+                        stock_code
                     )
-
-                else:
-                    (
-                        result,
-                        notice,
-                        import_error,
-                    ) = auto_import_stock(stock_code)
 
                     if import_error:
                         error = import_error
@@ -428,19 +543,18 @@ def index():
                             trailing_stop_pct=user_trailing_stop,
                         )
 
-                if result is not None and result.get("success"):
-                    chart_data = get_chart_data(
-                        stock_code,
-                        days=60,
-                    )
+                        chart_data = get_chart_data(
+                            stock_code,
+                            days=60,
+                        )
 
-            except sqlite3.Error as exception:
-                print(f"資料庫錯誤：{exception}")
-                error = "讀取資料庫時發生錯誤。"
+                except sqlite3.Error as exception:
+                    print(f"資料庫錯誤：{exception}")
+                    error = "讀取資料庫時發生錯誤。"
 
-            except Exception as exception:
-                print(f"分析錯誤：{exception}")
-                error = "股票分析時發生錯誤。"
+                except Exception as exception:
+                    print(f"分析錯誤：{exception}")
+                    error = "股票分析時發生錯誤。"
 
     if stock_code:
         expected_report_path = os.path.join(
@@ -471,6 +585,9 @@ def index():
         result=result,
         chart_data=chart_data,
         backtest_result=backtest_result,
+        compare_results=compare_results,
+        compare_errors=compare_errors,
+        compare_notices=compare_notices,
         error=error,
         notice=notice,
         stock_code=stock_code,
